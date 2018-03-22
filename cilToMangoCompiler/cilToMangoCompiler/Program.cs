@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Diagnostics;
 using System.Linq;
 using Mono.Cecil;
 using Mono.Cecil.Cil;
@@ -16,11 +17,34 @@ namespace cilToMango
         {
             string fileName = "../../../../SimpleExample/SimpleExample/bin/Debug/SimpleExample.exe";
             ModuleDefinition module = ModuleDefinition.ReadModule(fileName);
-            Console.WriteLine("Opened " + fileName + " for reading");
-            Console.WriteLine("File has " + module.Types.Count + "Types:");
-            foreach (TypeDefinition type in module.Types)
+
+            TypeDefinition mainClass = module.Types.Single(type => type.Name == "MainClass");
+            foreach (MethodDefinition method in mainClass.Methods)
             {
-                Console.WriteLine(type.Name);
+                String methodName = method.Name;
+                if (methodName.StartsWith("."))
+                {
+                    Console.WriteLine("Ignoring Instructions of Method " + methodName + "\n");
+                }
+                else
+                {
+                    Console.WriteLine("\nInstructions of Method " + methodName + "\n--------------------");
+                    foreach (Instruction i in method.Body.Instructions)
+                    {
+                        switch (i.OpCode.Name) {
+                            case "nop":
+                                Console.WriteLine("[NOP]");
+                                break;
+                            case "ldc.i4.4":
+                                Console.WriteLine("ldc i32 4");
+                                break;
+                            default:
+                                Console.WriteLine("Unknown Opcode: " + i.OpCode.Name);
+                                break;
+                        }
+                    }
+                }
+                Console.Write("\n\n");
             }
         }
     }
