@@ -8,11 +8,12 @@ namespace SimpleExample
         {
             int a = 4;
             int b = 5;
-            int maximum = Max(a, b);
-            Console.WriteLine(maximum);
+            int c = a + b;
+            //int maximum = Max(a, b);
+            //Console.WriteLine(maximum);
         }
 
-        public static int Max(int a, int b)
+        /*public static int Max(int a, int b)
         {
             if (a > b)
             {
@@ -22,7 +23,7 @@ namespace SimpleExample
             {
                 return b;
             }
-        }
+        }*/
 
     }
 }
