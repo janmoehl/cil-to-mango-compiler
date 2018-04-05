@@ -50,6 +50,7 @@ namespace cilToMango
                     outputFile.WriteLine("\t{");
 
                     ArrayList usedVariables = new ArrayList();
+                    ArrayList labelOffsets = new ArrayList();
 
                     // search for branching and variables
                     foreach (Instruction i in method.Body.Instructions)
@@ -65,9 +66,20 @@ namespace cilToMango
                                     usedVariables.Add(opcodeName.Substring(6, 1));
                                 }
                                 break;
+                            case "brfa": //brfalse
+                                if (opcodeName == "brfalse.s")
+                                {
+                                    labelOffsets.Add(((Instruction) i.Operand).Offset);
+                                }
+                                break;
+                            case "br.s": //brfalse
+                                if (opcodeName == "br.s")
+                                {
+                                    labelOffsets.Add(((Instruction)i.Operand).Offset);
+                                }
+                                break;
                         }
                     }
-
 
                     // prepare use of Variables
                     foreach (String s in usedVariables)
@@ -75,23 +87,57 @@ namespace cilToMango
                         outputFile.WriteLine("\t\tlocal i32 %loc" + s);
                     }
 
-
-
                     // translate instructions from cil to mango
                     foreach (Instruction i in method.Body.Instructions)
                     {
                         String opcodeName = i.OpCode.Name;
-                        outputFile.Write("\t\t");
+
+                        // check for Labels
+                        if (labelOffsets.Contains(i.Offset)) {
+                            outputFile.Write("l" + labelOffsets.IndexOf(i.Offset) + ":\t\t");
+                            Console.Write("l" + labelOffsets.IndexOf(i.Offset) + ":\t\t");
+                        }
+                        else
+                        {
+                            outputFile.Write("\t\t");
+                            Console.Write("\t\t");
+                        }
+
+                        // fancy Debug
+                        Console.WriteLine(i.Offset + "\t" + i.OpCode.Name);
+                        if (i.Operand != null)
+                        {
+                            Console.WriteLine("\t\t -> " + ((Instruction)i.Operand).Offset);
+                        }
+
+
                         //compare the first 3 chars
                         switch (opcodeName.Substring(0, Math.Min(4, opcodeName.Length)))
                         {
                             case "add":
                                 outputFile.WriteLine("add");
                                 break;
+                            case "brfa": // brfalse
+                                if (opcodeName == "brfalse.s")
+                                {
+                                    int targetOffset = ((Instruction) i.Operand).Offset;
+                                    outputFile.WriteLine("brfalse\tl" + labelOffsets.IndexOf(targetOffset));
+                                }
+                               break;
+                            case "br.s": // br.s
+                                if (opcodeName == "br.s")
+                                {
+                                    int targetOffset = ((Instruction)i.Operand).Offset;
+                                    outputFile.WriteLine("br\tl" + labelOffsets.IndexOf(targetOffset));
+                                }
+                                break;
+                            case "clt":
+                                outputFile.WriteLine("add");
+                                break;
                             case "ldc.": // ldc
                                 if (opcodeName.StartsWith("ldc.i4.") && opcodeName.Length == 8)
                                 {
-                                    outputFile.WriteLine("ldc i32 " + opcodeName.Substring(7,1));
+                                    outputFile.WriteLine("ldc\ti32\t" + opcodeName.Substring(7,1));
                                     break;
                                 }
                                 Console.WriteLine("Unknown Opcode: " + opcodeName);
@@ -99,10 +145,10 @@ namespace cilToMango
                             case "ldlo": //ldloc
                                 if (opcodeName.StartsWith("ldloc.") && opcodeName.Length == 7)
                                 {
-                                    outputFile.WriteLine("ldloc %loc" + opcodeName.Substring(6, 1));
+                                    outputFile.WriteLine("ldloc\t%loc" + opcodeName.Substring(6, 1));
                                     break;
                                 }
-                                Console.WriteLine("Unknown Opcode: " + opcodeName);
+                                Console.WriteLine("Unknown Opcode:\t" + opcodeName);
                                 break;
                             case "nop":
                                 outputFile.WriteLine("nop");
@@ -113,13 +159,14 @@ namespace cilToMango
                                     outputFile.WriteLine("stloc %loc" + opcodeName.Substring(6, 1));
                                     break;
                                 }
-                                Console.WriteLine("Unknown Opcode: " + opcodeName);
+                                Console.WriteLine("Unknown Opcode:\t" + opcodeName);
                                 break;
                             case "ret":
                                 outputFile.WriteLine("ret");
                                 break;
                             default:
-                                Console.WriteLine("Unknown Opcode: " + opcodeName);
+                                Console.WriteLine("Unknown Opcode:\t" + opcodeName);
+                                outputFile.WriteLine("");
                                 break;
                         }
                     }
