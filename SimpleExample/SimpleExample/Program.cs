@@ -6,16 +6,29 @@ namespace SimpleExample
     {
         static public void Main()
         {
-            int a = 4;
-            int b = 5;
+            int a = 3;
+            a *= 2;
+            a /= 1;
+            a += 2;
+            a -= 3;
             int c;
-            if (a < b) {
+            if (a >= 0) {
                 c = 1;
             }
             else
             {
-                c = 0;
+                c = -1;
             }
+
+            while(c == 1) {
+                c = -1;
+            }
+
+            for (int i = 0; i < 12; i++)
+            {
+                a = i;
+            }
+
             //int maximum = Max(a, b);
             //Console.WriteLine(maximum);
         }

@@ -11,9 +11,11 @@ namespace cilToMango
     public class MainClass
     {
         private static System.IO.StreamWriter outputFile;
+        private static Instruction currentInstruction;
 
         public static void Main(string[] args)
         {
+            // startup things
             Console.WriteLine(args[0]);
             if (args.Length < 1)
             {
@@ -33,9 +35,9 @@ namespace cilToMango
             ModuleDefinition module = ModuleDefinition.ReadModule(args[0]);
 
 
+            //begin writing to outputfile
             outputFile.WriteLine("module Main");
             outputFile.WriteLine("{");
-
             TypeDefinition mainClass = module.Types.Single(type => type.Name == "MainClass");
             foreach (MethodDefinition method in mainClass.Methods)
             {
@@ -55,25 +57,27 @@ namespace cilToMango
                     // search for branching and variables
                     foreach (Instruction i in method.Body.Instructions)
                     {
+                        currentInstruction = i;
                         String opcodeName = i.OpCode.Name;
 
-                        switch (opcodeName.Substring(0, Math.Min(4, opcodeName.Length)))
+                        switch (opcodeName)
                         {
-                            case "stlo":
-                                if (opcodeName.StartsWith("stloc.") && opcodeName.Length == 7
-                                    && !usedVariables.Contains(opcodeName.Substring(6,1)))
+                            case "stloc.0":
+                            case "stloc.1":
+                            case "stloc.2":
+                            case "stloc.3":
+                                if (!usedVariables.Contains(opcodeName.Substring(6,1)))
                                 {
                                     usedVariables.Add(opcodeName.Substring(6, 1));
                                 }
                                 break;
-                            case "brfa": //brfalse
-                                if (opcodeName == "brfalse.s")
-                                {
-                                    labelOffsets.Add(((Instruction) i.Operand).Offset);
-                                }
-                                break;
-                            case "br.s": //brfalse
-                                if (opcodeName == "br.s")
+                            case "br":
+                            case "br.s":
+                            case "brfalse":
+                            case "brfalse.s":
+                            case "brtrue":
+                            case "brtrue.s":
+                                if (!labelOffsets.Contains(((Instruction)i.Operand).Offset))
                                 {
                                     labelOffsets.Add(((Instruction)i.Operand).Offset);
                                 }
@@ -90,6 +94,7 @@ namespace cilToMango
                     // translate instructions from cil to mango
                     foreach (Instruction i in method.Body.Instructions)
                     {
+                        currentInstruction = i;
                         String opcodeName = i.OpCode.Name;
 
                         // check for Labels
@@ -103,70 +108,117 @@ namespace cilToMango
                             Console.Write("\t\t");
                         }
 
-                        // fancy Debug
+                        // fancy Debug output
                         Console.WriteLine(i.Offset + "\t" + i.OpCode.Name);
                         if (i.Operand != null)
                         {
-                            Console.WriteLine("\t\t -> " + ((Instruction)i.Operand).Offset);
+                            if (i.Operand.GetType().Name == "Instruction")
+                            {
+                                Console.WriteLine("\t\t -> " + ((Instruction)i.Operand).Offset);
+                            }
+                            else
+                            {
+                                Console.WriteLine("\t\t" + i.Operand);
+                            }
                         }
 
 
                         //compare the first 3 chars
-                        switch (opcodeName.Substring(0, Math.Min(4, opcodeName.Length)))
+                        int targetOffset;
+                        switch (opcodeName)
                         {
                             case "add":
                                 outputFile.WriteLine("add");
                                 break;
-                            case "brfa": // brfalse
-                                if (opcodeName == "brfalse.s")
-                                {
-                                    int targetOffset = ((Instruction) i.Operand).Offset;
-                                    outputFile.WriteLine("brfalse\tl" + labelOffsets.IndexOf(targetOffset));
-                                }
-                               break;
-                            case "br.s": // br.s
-                                if (opcodeName == "br.s")
-                                {
-                                    int targetOffset = ((Instruction)i.Operand).Offset;
-                                    outputFile.WriteLine("br\tl" + labelOffsets.IndexOf(targetOffset));
-                                }
+                            case "br":
+                            case "br.s":
+                                targetOffset = ((Instruction)i.Operand).Offset;
+                                outputFile.WriteLine("br\tl" + labelOffsets.IndexOf(targetOffset));
+                                break;
+                            case "brfalse":
+                            case "brfalse.s":
+                                targetOffset = ((Instruction)i.Operand).Offset;
+                                outputFile.WriteLine("brfalse\tl" + labelOffsets.IndexOf(targetOffset));
+                                break;
+                            case "brtrue":
+                            case "brtrue.s":
+                                targetOffset = ((Instruction) i.Operand).Offset;
+                                outputFile.WriteLine("brtrue\tl" + labelOffsets.IndexOf(targetOffset));
+                                break;
+                            case "ceq":
+                                outputFile.WriteLine("ceq");
+                                break;
+                            case "cgt":
+                                outputFile.WriteLine("cgt");
                                 break;
                             case "clt":
-                                outputFile.WriteLine("add");
+                                outputFile.WriteLine("clt");
                                 break;
-                            case "ldc.": // ldc
-                                if (opcodeName.StartsWith("ldc.i4.") && opcodeName.Length == 8)
+                            case "div":
+                                outputFile.WriteLine("div");
+                                break;
+                            case "ldc.i4.m1":
+                            case "ldc.i4.M1":
+                                outputFile.WriteLine("ldc i32 -1");
+                                break;
+                            case "ldc.i4.0":
+                            case "ldc.i4.1":
+                            case "ldc.i4.2":
+                            case "ldc.i4.3":
+                            case "ldc.i4.4":
+                            case "ldc.i4.5":
+                            case "ldc.i4.6":
+                            case "ldc.i4.7":
+                            case "ldc.i4.8":
+                                outputFile.WriteLine("ldc\ti32\t" + opcodeName.Substring(7, 1));
+                                break;
+                            case "ldc.i4.s":
+                                outputFile.WriteLine("ldc\ti32\t" + i.Operand);
+                                break;
+                            case "ldloc.0":
+                            case "ldloc.1":
+                            case "ldloc.2":
+                            case "ldloc.3":
+                                outputFile.WriteLine("ldloc\t%loc" + opcodeName.Substring(6, 1));
+                                break;
+                            case "ldloc.s":
+                                if (i.Operand != null && i.Operand.ToString().StartsWith("V_")
+                                    && i.Operand.ToString().Length >= 3)
                                 {
-                                    outputFile.WriteLine("ldc\ti32\t" + opcodeName.Substring(7,1));
+                                    outputFile.WriteLine("ldloc\t%loc" + i.Operand.ToString().Substring(2));
                                     break;
                                 }
-                                Console.WriteLine("Unknown Opcode: " + opcodeName);
+                                OpcodeUnknown();
                                 break;
-                            case "ldlo": //ldloc
-                                if (opcodeName.StartsWith("ldloc.") && opcodeName.Length == 7)
-                                {
-                                    outputFile.WriteLine("ldloc\t%loc" + opcodeName.Substring(6, 1));
-                                    break;
-                                }
-                                Console.WriteLine("Unknown Opcode:\t" + opcodeName);
+                            case "mul":
+                                outputFile.WriteLine("mul");
                                 break;
                             case "nop":
                                 outputFile.WriteLine("nop");
                                 break;
-                            case "stlo":
-                                if (opcodeName.StartsWith("stloc.") && opcodeName.Length == 7)
-                                {
-                                    outputFile.WriteLine("stloc %loc" + opcodeName.Substring(6, 1));
-                                    break;
-                                }
-                                Console.WriteLine("Unknown Opcode:\t" + opcodeName);
-                                break;
                             case "ret":
                                 outputFile.WriteLine("ret");
                                 break;
+                            case "stloc.0":
+                            case "stloc.1":
+                            case "stloc.2":
+                            case "stloc.3":
+                                outputFile.WriteLine("stloc\t%loc" + opcodeName.Substring(6,1));
+                                break;
+                            case "stloc.s":
+                                if (i.Operand != null && i.Operand.ToString().StartsWith("V_")
+                                    && i.Operand.ToString().Length >= 3)
+                                {
+                                    outputFile.WriteLine("stloc\t%loc" + i.Operand.ToString().Substring(2));
+                                    break;
+                                }
+                                OpcodeUnknown();
+                                break;
+                            case "sub":
+                                outputFile.WriteLine("sub");
+                                break;
                             default:
-                                Console.WriteLine("Unknown Opcode:\t" + opcodeName);
-                                outputFile.WriteLine("");
+                                OpcodeUnknown();
                                 break;
                         }
                     }
@@ -177,6 +229,13 @@ namespace cilToMango
 
 
             outputFile.Close();
+        }
+
+        private static void OpcodeUnknown()
+        {
+            Console.WriteLine(">> Unknown Opcode:\t" + currentInstruction.OpCode.Name);
+            Console.WriteLine(">> Operand:\t" + currentInstruction.Operand);
+            outputFile.WriteLine("");
         }
     }
 }
