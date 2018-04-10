@@ -4,9 +4,19 @@ namespace SimpleExample
 {
     class MainClass
     {
+        static public int SYSgetTemperature()
+        {
+            return 0;
+        }
+
+        static public void SYSprint(int i)
+        {
+            
+        }
+
         static public void Main()
         {
-            int a = 3;
+            int a = SYSgetTemperature();
             a *= 2;
             a /= 1;
             a += 2;
@@ -29,12 +39,14 @@ namespace SimpleExample
                 a = i;
             }
 
-            //int maximum = Max(a, b);
+            int maximum = Max(a, c, 0, 0, 0);
             //Console.WriteLine(maximum);
+            SYSprint(maximum);
         }
 
-        /*public static int Max(int a, int b)
+        public static int Max(int a, int b, int c, int d, int e)
         {
+            int result = c + d + e;
             if (a > b)
             {
                 return a;
@@ -43,7 +55,7 @@ namespace SimpleExample
             {
                 return b;
             }
-        }*/
+        }
 
     }
 }
