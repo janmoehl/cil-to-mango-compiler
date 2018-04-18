@@ -86,6 +86,18 @@ namespace cilToMango
                                 usedVariables.Add(opcodeName.Substring(6, 1));
                             }
                             break;
+                        case "stloc.s":
+                            if (i.Operand != null
+                                && i.Operand.ToString().StartsWith("V_")
+                                && i.Operand.ToString().Length >= 3)
+                            {
+                                String variable = i.Operand.ToString().Substring(2);
+                                if (!usedVariables.Contains(variable))
+                                {
+                                    usedVariables.Add(variable);
+                                }
+                            }
+                            break;
                         case "br":
                         case "br.s":
                         case "brfalse":
