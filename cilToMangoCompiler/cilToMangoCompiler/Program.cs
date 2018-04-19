@@ -2,7 +2,6 @@
 using System.Collections;
 using System.IO;
 using System.Linq;
-using System.Text.RegularExpressions;
 using Mono.Cecil;
 using Mono.Cecil.Cil;
 
@@ -41,14 +40,14 @@ namespace cilToMango
             TypeDefinition mainClass = module.Types.Single(type => type.Name == "MainClass");
             foreach (MethodDefinition method in mainClass.Methods)
             {
-                String methodName = method.Name;
+                String methodName = method.Name.ToLower();
 
                 if (methodName.StartsWith(".")) // not relevant for the mango code
                 {
                     Console.WriteLine("//Ignoring Instructions of Method " + methodName + "\n");
                     continue;
                 }
-                if (methodName.StartsWith("SYS") && methodName.Length > 3) // extern systemcall
+                if (methodName.StartsWith("sys") && methodName.Length > 3) // extern systemcall
                 {
                     PrintLn("\tdeclare "
                             + GetMangoType(method.ReturnType.ToString())
@@ -98,10 +97,32 @@ namespace cilToMango
                                 }
                             }
                             break;
+                        case "beq":
+                        case "beq.s":
+                        case "bge":
+                        case "bge.s":
+                        case "bge.un":
+                        case "bge.un.s":
+                        case "bgt":
+                        case "bgt.s":
+                        case "bgt.un":
+                        case "bgt.un.s":
+                        case "ble":
+                        case "ble.s":
+                        case "ble.un":
+                        case "ble.un.s":
+                        case "blt":
+                        case "blt.s":
+                        case "blt.un":
+                        case "blt.un.s":
+                        case "bne.un":
+                        case "bne.un.s":
                         case "br":
                         case "br.s":
                         case "brfalse":
                         case "brfalse.s":
+                        case "brnull":
+                        case "brnull.s":
                         case "brtrue":
                         case "brtrue.s":
                             if (!labelOffsets.Contains(((Instruction)i.Operand).Offset))
@@ -166,13 +187,44 @@ namespace cilToMango
                         case "add":
                             outputFile.WriteLine("add");
                             break;
+                        case "beq":
+                        case "beq.s":
+                        case "bge":
+                        case "bge.s":
+                        case "bge.un":
+                        case "bge.un.s":
+                        case "bgt":
+                        case "bgt.s":
+                        case "bgt.un":
+                        case "bgt.un.s":
+                        case "ble":
+                        case "ble.s":
+                        case "ble.un":
+                        case "ble.un.s":
+                        case "blt":
+                        case "blt.s":
+                        case "blt.un":
+                        case "blt.un.s":
+                        case "bne.un":
+                        case "bne.un.s":
                         case "br":
                         case "br.s":
+                            String mangoInstruction;
+                            if (opcodeName.EndsWith(".s"))
+                            {
+                                mangoInstruction = opcodeName.Substring(0, opcodeName.Length - 2);
+                            }
+                            else
+                            {
+                                mangoInstruction = opcodeName;
+                            }
                             targetOffset = ((Instruction)i.Operand).Offset;
-                            outputFile.WriteLine("br\tl" + labelOffsets.IndexOf(targetOffset));
+                            outputFile.WriteLine(mangoInstruction + "\tl" + labelOffsets.IndexOf(targetOffset));
                             break;
                         case "brfalse":
                         case "brfalse.s":
+                        case "brnull":
+                        case "brnull.s":
                             targetOffset = ((Instruction)i.Operand).Offset;
                             outputFile.WriteLine("brfalse\tl" + labelOffsets.IndexOf(targetOffset));
                             break;
@@ -183,25 +235,23 @@ namespace cilToMango
                             break;
                         case "call":
                             MethodDefinition targetMethod = ((MethodDefinition)i.Operand);
-                            if (targetMethod.Name.StartsWith("SYS"))
+                            if (targetMethod.Name.ToLower().StartsWith("sys"))
                             {
                                 outputFile.Write("sys");
                             }
                             outputFile.WriteLine("call\t"
                                              + GetMangoType(targetMethod.ReturnType.ToString())
-                                             + "\t@" + targetMethod.Name + "("
+                                             + "\t@" + targetMethod.Name.ToLower() + "("
                                              + GetArgumentsFromMethod(targetMethod, false)
                                              + ")"
                                             );
                             break;
                         case "ceq":
-                            outputFile.WriteLine("ceq");
-                            break;
                         case "cgt":
-                            outputFile.WriteLine("cgt");
-                            break;
+                        case "cgt.un":
                         case "clt":
-                            outputFile.WriteLine("clt");
+                        case "clt.un":
+                            outputFile.WriteLine(opcodeName);
                             break;
                         case "div":
                             outputFile.WriteLine("div");
@@ -230,6 +280,7 @@ namespace cilToMango
                         case "ldc.i4.8":
                             outputFile.WriteLine("ldc\ti32\t" + opcodeName.Substring(7, 1));
                             break;
+                        case "ldc.i4":
                         case "ldc.i4.s":
                             outputFile.WriteLine("ldc\ti32\t" + i.Operand);
                             break;
