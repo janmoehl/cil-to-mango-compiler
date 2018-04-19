@@ -4,57 +4,24 @@ namespace SimpleExample
 {
     class MainClass
     {
-        static public int SYSgetTemperature()
+        struct Point2D
         {
-            return 0;
+            public int X;
+            public int Y;
         }
 
-        static public void SYSprint(int i)
+        static void Main()
         {
-            
+            Point2D p;
+            p.X = 15;
+            p.Y = 100;
+            MoveBy(ref p, 1, 1);
         }
 
-        static public void Main()
+        static void MoveBy(ref Point2D p, int x, int y)
         {
-            int a = SYSgetTemperature();
-            a *= 2;
-            a /= 1;
-            a += 2;
-            a -= 3;
-            int c;
-            if (a >= 0) {
-                c = 1;
-            }
-            else
-            {
-                c = -1;
-            }
-
-            while(c == 1) {
-                c = -1;
-            }
-
-            for (int i = 0; i < 12; i++)
-            {
-                a = i;
-            }
-
-            int maximum = Max(a, c, 0, 0, 0);
-            //Console.WriteLine(maximum);
-            SYSprint(maximum);
-        }
-
-        public static int Max(int a, int b, int c, int d, int e)
-        {
-            int result = c + d + e;
-            if (a > b)
-            {
-                return a;
-            }
-            else
-            {
-                return b;
-            }
+            p.X += x;
+            p.Y += y;
         }
 
     }
