@@ -1,0 +1,32 @@
+module Main
+{
+	declare i32 @sysgetsensorvalue() 100
+
+	declare void @sysprint(i32 %arg0) 101
+
+	define void @main()
+	{
+		local	i32	%loc0
+		local	i32	%loc1
+		stloc	%loc0
+l3:		syscall	i32	@sysgetsensorvalue()
+		stloc	%loc1
+		ldloc	%loc1
+		ldc	i32	200
+		ble	l0
+		ldc	i32	1
+		syscall	void	@sysprint(i32)
+		br	l1
+l0:		ldloc	%loc1
+		ldc	i32	100
+		bge	l2
+		ldc i32 -1
+		syscall	void	@sysprint(i32)
+		br	l1
+l2:		ldc	i32	0
+		syscall	void	@sysprint(i32)
+l1:		br	l3
+	}
+
+
+}
