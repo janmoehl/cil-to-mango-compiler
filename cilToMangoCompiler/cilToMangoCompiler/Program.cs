@@ -16,7 +16,7 @@ namespace cilToMango
         public static void Main(string[] args)
         {
             // startup things
-            if (args.Length < 1)
+            if (args.Length < 1 || args.Length > 2)
             {
                 Console.WriteLine("Please give the input file as first argument. Second for outputfile may be optional.");
                 return;
@@ -38,6 +38,18 @@ namespace cilToMango
             PrintLn("module Main\n{");
             int externMethodCounter = 0;
             TypeDefinition mainClass = module.Types.Single(type => type.Name == "MainClass");
+
+            // handle c# structs
+            foreach (TypeDefinition type in mainClass.NestedTypes)
+            {
+                PrintLn("\ttype\t" + type.Name);
+                PrintLn("\t{");
+                foreach (FieldDefinition field in type.Fields)
+                {
+                    PrintLn("\t\tfield\t " + GetMangoType(field.FieldType.Name) + " " + field.Name);
+                }
+                PrintLn("\t}\n\n");
+            }
             foreach (MethodDefinition method in mainClass.Methods)
             {
                 String methodName = method.Name.ToLower();
@@ -65,10 +77,9 @@ namespace cilToMango
                 PrintLn(")");
                 PrintLn("\t{");
 
-                ArrayList usedVariables = new ArrayList();
                 ArrayList labelOffsets = new ArrayList();
 
-                // search for branching and variables
+                // search for branching instructions
                 foreach (Instruction i in method.Body.Instructions)
                 {
                     currentInstruction = i;
@@ -76,27 +87,6 @@ namespace cilToMango
 
                     switch (opcodeName)
                     {
-                        case "stloc.0":
-                        case "stloc.1":
-                        case "stloc.2":
-                        case "stloc.3":
-                            if (!usedVariables.Contains(opcodeName.Substring(6,1)))
-                            {
-                                usedVariables.Add(opcodeName.Substring(6, 1));
-                            }
-                            break;
-                        case "stloc.s":
-                            if (i.Operand != null
-                                && i.Operand.ToString().StartsWith("V_")
-                                && i.Operand.ToString().Length >= 3)
-                            {
-                                String variable = i.Operand.ToString().Substring(2);
-                                if (!usedVariables.Contains(variable))
-                                {
-                                    usedVariables.Add(variable);
-                                }
-                            }
-                            break;
                         case "beq":
                         case "beq.s":
                         case "bge":
@@ -134,9 +124,19 @@ namespace cilToMango
                 }
 
                 // prepare use of Variables
-                foreach (String s in usedVariables)
+                int localVarIndex = 0;
+                foreach (VariableDefinition var in method.Body.Variables)
                 {
-                    outputFile.WriteLine("\t\tlocal\ti32\t%loc" + s);
+                    string varType;
+                    if (var.VariableType.IsPrimitive)
+                    {
+                        varType = GetMangoType(var.VariableType.Name);
+                    }
+                    else
+                    {
+                        varType = var.VariableType.Name;
+                    }
+                    outputFile.WriteLine("\t\tlocal\t" + varType + "\t%loc" + localVarIndex++);
                 }
 
                 // translate instructions from cil to mango
@@ -180,8 +180,9 @@ namespace cilToMango
                     }
 
 
-                    //compare the first 3 chars
-                    int targetOffset;
+                    int targetOffset;   // used for branching
+                    FieldReference targetField; // used for stfld
+                    string fieldName;    // used for stfld
                     switch (opcodeName)
                     {
                         case "add":
@@ -251,10 +252,11 @@ namespace cilToMango
                         case "cgt.un":
                         case "clt":
                         case "clt.un":
+                        case "dup":
                             outputFile.WriteLine(opcodeName);
                             break;
-                        case "div":
-                            outputFile.WriteLine("div");
+                        case "idind.u8": // not ldind.u8 !
+                            outputFile.WriteLine("ldind i64");
                             break;
                         case "ldarg.0":
                         case "ldarg.1":
@@ -284,6 +286,68 @@ namespace cilToMango
                         case "ldc.i4.s":
                             outputFile.WriteLine("ldc\ti32\t" + i.Operand);
                             break;
+                        case "ldfld":
+                        case "ldflda":
+                            if (i.Operand is FieldReference)
+                            {
+                                targetField = (FieldReference)i.Operand;
+                                outputFile.Write(opcodeName + "\t");
+                                if (targetField.FieldType.IsPrimitive)
+                                {
+                                    outputFile.Write(GetMangoType(targetField.FieldType.Name) + "\t");
+                                }
+                                else
+                                {
+                                    outputFile.Write(targetField.FieldType.Name + "\t");
+                                }
+                                fieldName = targetField.FullName; // e.g. "System.Int32 SimpleExample.MainClass/Point2D::x"
+                                fieldName = fieldName.Substring(fieldName.IndexOf('/') + 1); // e.g. "Point2D::x"
+                                fieldName = fieldName.Replace("::", "/");   // e.g. "Point2D/x"
+                                outputFile.WriteLine(fieldName);
+                            }
+                            break;
+                        // case "ldind.i":
+                        case "ldind.i1":
+                            outputFile.WriteLine("ldind i8");
+                            outputFile.WriteLine("\t\tconv i32");
+                            break;
+                        case "ldind.i2":
+                            outputFile.WriteLine("ldind i16");
+                            outputFile.WriteLine("\t\tconv i32");
+                            break;
+                        case "ldind.i4":
+                            outputFile.WriteLine("ldind i32");
+                            break;
+                        case "ldind.i8":
+                            outputFile.WriteLine("ldind i64");
+                            break;
+                        case "ldind.r4":
+                            outputFile.WriteLine("ldind f32");
+                            break;
+                        case "ldind.r8":
+                            outputFile.WriteLine("ldind f64");
+                            break;
+                        //case "ldind.ref":
+                        case "ldind.u1":
+                            outputFile.WriteLine("ldind u8");
+                            outputFile.WriteLine("\t\tconv i32");
+                            break;
+                        case "ldind.u2":
+                            outputFile.WriteLine("ldind u16");
+                            outputFile.WriteLine("\t\tconv i32");
+                            break;
+                        case "ldind.u4":
+                            outputFile.WriteLine("ldind u32");
+                            outputFile.WriteLine("\t\tconv i32");
+                            break;
+                        case "ldloca":
+                        case "ldloca.s":
+                            if (i.Operand != null && i.Operand.ToString().StartsWith("V_")
+                                && i.Operand.ToString().Length >= 3)
+                            {
+                                outputFile.WriteLine("ldloca\t%loc" + i.Operand.ToString().Substring(2));
+                            }
+                            break;
                         case "ldloc.0":
                         case "ldloc.1":
                         case "ldloc.2":
@@ -295,9 +359,7 @@ namespace cilToMango
                                 && i.Operand.ToString().Length >= 3)
                             {
                                 outputFile.WriteLine("ldloc\t%loc" + i.Operand.ToString().Substring(2));
-                                break;
                             }
-                            OpcodeUnknown();
                             break;
                         case "mul":
                             outputFile.WriteLine("mul");
@@ -307,6 +369,44 @@ namespace cilToMango
                             break;
                         case "ret":
                             outputFile.WriteLine("ret");
+                            break;
+                        case "stfld":
+                            if (i.Operand is FieldReference)
+                            {
+                                targetField = (FieldReference) i.Operand;
+                                outputFile.Write("stfld\t");
+                                if (targetField.FieldType.IsPrimitive)
+                                {
+                                    outputFile.Write(GetMangoType(targetField.FieldType.Name) + "\t");
+                                }
+                                else
+                                {
+                                    outputFile.Write(targetField.FieldType.Name + "\t");
+                                }
+                                fieldName = targetField.FullName; // e.g. "System.Int32 SimpleExample.MainClass/Point2D::x"
+                                fieldName = fieldName.Substring(fieldName.IndexOf('/') + 1); // e.g. "Point2D::x"
+                                fieldName = fieldName.Replace("::", "/");   // e.g. "Point2D/x"
+                                outputFile.WriteLine(fieldName);
+                            }
+                            break;
+                        //case "stind.ref":
+                        case "stind.i1":
+                            outputFile.WriteLine("stind i8");
+                            break;
+                        case "stind.i2":
+                            outputFile.WriteLine("stind i16");
+                            break;
+                        case "stind.i4":
+                            outputFile.WriteLine("stind i32");
+                            break;
+                        case "stind.i8":
+                            outputFile.WriteLine("stind i64");
+                            break;
+                        case "stind.r4":
+                            outputFile.WriteLine("stind f32");
+                            break;
+                        case "stind.r8":
+                            outputFile.WriteLine("stind f64");
                             break;
                         case "stloc.0":
                         case "stloc.1":
@@ -321,13 +421,14 @@ namespace cilToMango
                                 outputFile.WriteLine("stloc\t%loc" + i.Operand.ToString().Substring(2));
                                 break;
                             }
-                            OpcodeUnknown();
                             break;
                         case "sub":
                             outputFile.WriteLine("sub");
                             break;
                         default:
-                            OpcodeUnknown();
+                            Console.WriteLine(">> Unknown Opcode:\t" + currentInstruction.OpCode.Name);
+                            Console.WriteLine(">> Operand:\t" + currentInstruction.Operand);
+                            outputFile.WriteLine("");
                             break;
                     }
                 }
@@ -335,14 +436,6 @@ namespace cilToMango
             }
             outputFile.WriteLine("}");
             outputFile.Close();
-        }
-
-        // handles an unknokn opcode
-        private static void OpcodeUnknown()
-        {
-            Console.WriteLine(">> Unknown Opcode:\t" + currentInstruction.OpCode.Name);
-            Console.WriteLine(">> Operand:\t" + currentInstruction.Operand);
-            outputFile.WriteLine("");
         }
 
         // converts a cil return type into a mango return type
@@ -355,6 +448,7 @@ namespace cilToMango
             switch (cilType)
             {
                 case "System.Int32":
+                case "Int32":
                     return "i32";
                 default:
                     return "void";
@@ -365,6 +459,7 @@ namespace cilToMango
         {
             // maybe throw runtime errors for invalid input
             // there could be a better way using regex
+            // or even a function for this in the undocumented cecil api ???
             String arguments = m.FullName.Substring(m.FullName.IndexOf("(") + 1);
             arguments = arguments.Substring(0, arguments.Length - 1);
             if (arguments == "")

@@ -6,22 +6,31 @@ namespace SimpleExample
     {
         struct Point2D
         {
-            public int X;
-            public int Y;
+            public int x;
+            public int y;
         }
+
+        /*
+         * struct Line2D
+         * {
+         *      public Point2D start;
+         *      public Point2D end;
+         * }
+         * 
+         * */
 
         static void Main()
         {
             Point2D p;
-            p.X = 15;
-            p.Y = 100;
+            p.x = 15;
+            p.y = 100;
             MoveBy(ref p, 1, 1);
         }
 
         static void MoveBy(ref Point2D p, int x, int y)
         {
-            p.X += x;
-            p.Y += y;
+            p.x += x;
+            p.y += y;
         }
 
     }

@@ -10,3 +10,5 @@
 
 *.ods
 *.odt
+*.exe
+test/

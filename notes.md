@@ -19,6 +19,7 @@
 * Attribute
 
 .Else
+* MainClass ist Hauptklasse
 * alle funktionsnamen werden zu lowercase -> keine doppelten Funktionsnamen
 
 ## Probleme:

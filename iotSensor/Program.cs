@@ -1,39 +1,28 @@
-﻿using System;
-
-namespace iotSensor
+﻿class MainClass
 {
-    class MainClass
-    {
-        static public int SYSgetSensorValue()
-        {
-            return 0;
-        }
+		static public int SYSgetSensorValue()
+		{
+				return 0;
+		}
 
-        static public void SYSprint(int i)
-        {
-            
-        }
+		static public void SYSsetLight(int i)
+		{
+				
+		}
 
-        static public void Main()
-        {
-				    String hayo = "abc";
-					  while (true)
+		static public void Main()
+		{
+				while (true)
+				{
+						int a = SYSgetSensorValue();
+						if (a > 150)
 						{
-                int a = SYSgetSensorValue();
-                if (a > 200)
-                {
-                    SYSprint(1);
-                }
-                else if (a < 100)
-                {
-                    SYSprint(-1);
-                }
-                else
-                {
-                    SYSprint(0);
-                }
+								SYSsetLight(0);
 						}
-        }
-
-    }
+						else
+						{
+								SYSsetLight(1);
+						}
+				}
+		}
 }
