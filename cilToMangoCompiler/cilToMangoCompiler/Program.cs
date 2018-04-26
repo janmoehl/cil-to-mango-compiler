@@ -42,11 +42,11 @@ namespace cilToMango
             // handle c# structs
             foreach (TypeDefinition type in mainClass.NestedTypes)
             {
-                PrintLn("\ttype\t" + type.Name);
+                PrintLn("\ttype " + type.Name);
                 PrintLn("\t{");
                 foreach (FieldDefinition field in type.Fields)
                 {
-                    PrintLn("\t\tfield\t " + GetMangoType(field.FieldType.Name) + " " + field.Name);
+                    PrintLn("\t\tfield\t " + GetMangoType(field.FieldType) + " " + field.Name);
                 }
                 PrintLn("\t}\n\n");
             }
@@ -62,7 +62,7 @@ namespace cilToMango
                 if (methodName.StartsWith("sys") && methodName.Length > 3) // extern systemcall
                 {
                     PrintLn("\tdeclare "
-                            + GetMangoType(method.ReturnType.ToString())
+                            + GetMangoType(method.ReturnType)
                             + " @" + methodName + "("
                             + GetArgumentsFromMethod(method)
                             + ") " + (100 + externMethodCounter++) + "\n");
@@ -71,7 +71,7 @@ namespace cilToMango
 
                 // normal function
                 Print("\tdefine "
-                        + GetMangoType(method.ReturnType.ToString())
+                      + GetMangoType(method.ReturnType)
                       + " @" + methodName + "(");
                 Print(GetArgumentsFromMethod(method));
                 PrintLn(")");
@@ -130,7 +130,7 @@ namespace cilToMango
                     string varType;
                     if (var.VariableType.IsPrimitive)
                     {
-                        varType = GetMangoType(var.VariableType.Name);
+                        varType = GetMangoType(var.VariableType);
                     }
                     else
                     {
@@ -241,7 +241,7 @@ namespace cilToMango
                                 outputFile.Write("sys");
                             }
                             outputFile.WriteLine("call\t"
-                                             + GetMangoType(targetMethod.ReturnType.ToString())
+                                                 + GetMangoType(targetMethod.ReturnType)
                                              + "\t@" + targetMethod.Name.ToLower() + "("
                                              + GetArgumentsFromMethod(targetMethod, false)
                                              + ")"
@@ -294,7 +294,7 @@ namespace cilToMango
                                 outputFile.Write(opcodeName + "\t");
                                 if (targetField.FieldType.IsPrimitive)
                                 {
-                                    outputFile.Write(GetMangoType(targetField.FieldType.Name) + "\t");
+                                    outputFile.Write(GetMangoType(targetField.FieldType) + "\t");
                                 }
                                 else
                                 {
@@ -377,7 +377,7 @@ namespace cilToMango
                                 outputFile.Write("stfld\t");
                                 if (targetField.FieldType.IsPrimitive)
                                 {
-                                    outputFile.Write(GetMangoType(targetField.FieldType.Name) + "\t");
+                                    outputFile.Write(GetMangoType(targetField.FieldType) + "\t");
                                 }
                                 else
                                 {
@@ -439,45 +439,45 @@ namespace cilToMango
         }
 
         // converts a cil return type into a mango return type
-        private static String GetMangoType(String cilType)
+        private static String GetMangoType(TypeReference cilType)
         {
-            if (cilType == "")
+            if (!cilType.IsPrimitive)
             {
-                return "";
+                if (cilType.Name == "Void")
+                {
+                    return "void";
+                }
+                return cilType.Name.ToString();
             }
-            switch (cilType)
+            switch (cilType.Name)
             {
-                case "System.Int32":
                 case "Int32":
                     return "i32";
                 default:
+                    Console.WriteLine("Unknown Type:\t" + cilType.FullName);
                     return "void";
             }
         }
 
+        // should return something like "int32, f32, int32" or "int32 %arg0, f32 %arg1"
         private static String GetArgumentsFromMethod(MethodDefinition m, bool withArgumentName = true)
         {
-            // maybe throw runtime errors for invalid input
-            // there could be a better way using regex
-            // or even a function for this in the undocumented cecil api ???
-            String arguments = m.FullName.Substring(m.FullName.IndexOf("(") + 1);
-            arguments = arguments.Substring(0, arguments.Length - 1);
-            if (arguments == "")
+            string result = "";
+            bool firstParameter = true;
+            int argumentCounter = 0;
+            foreach (ParameterDefinition p in m.Parameters)
             {
-                return "";
-            }
-            String result = "";
-            int argCounter = 0;
-            foreach (String argument in arguments.Split(",".ToCharArray()))
-            {
-                if (result != "")
+                if (!firstParameter)
                 {
                     result += ", ";
                 }
-                result += GetMangoType(argument);
-                if (withArgumentName)
+                else
                 {
-                    result += " %arg" + argCounter++;
+                    firstParameter = false;
+                }
+                result += GetMangoType(p.ParameterType);
+                if (withArgumentName) {
+                    result += " %arg" + argumentCounter++;
                 }
             }
             return result;
