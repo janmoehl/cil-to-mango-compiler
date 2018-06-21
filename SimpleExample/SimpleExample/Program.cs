@@ -25,6 +25,10 @@ namespace SimpleExample
             p.x = 15;
             p.y = 100;
             MoveBy(ref p, 1, 1);
+            bool x = BooleanFunction();
+            if (x) {
+                p.x = 20;
+            }
         }
 
         static void MoveBy(ref Point2D p, int x, int y)
@@ -33,5 +37,9 @@ namespace SimpleExample
             p.y += y;
         }
 
+        static bool BooleanFunction() {
+            return true;
+        }
+
     }
-}
+} 

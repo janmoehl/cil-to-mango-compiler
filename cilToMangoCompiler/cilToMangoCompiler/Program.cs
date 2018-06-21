@@ -130,7 +130,7 @@ namespace cilToMango
                     string varType;
                     if (var.VariableType.IsPrimitive)
                     {
-                        varType = GetMangoType(var.VariableType);
+                        varType = GetMangoVariableType(var.VariableType);
                     }
                     else
                     {
@@ -362,13 +362,10 @@ namespace cilToMango
                             }
                             break;
                         case "mul":
-                            outputFile.WriteLine("mul");
-                            break;
+                        case "neg":
                         case "nop":
-                            outputFile.WriteLine("nop");
-                            break;
                         case "ret":
-                            outputFile.WriteLine("ret");
+                            outputFile.WriteLine(opcodeName);
                             break;
                         case "stfld":
                             if (i.Operand is FieldReference)
@@ -423,7 +420,7 @@ namespace cilToMango
                             }
                             break;
                         case "sub":
-                            outputFile.WriteLine("sub");
+                            outputFile.WriteLine(opcodeName);
                             break;
                         default:
                             Console.WriteLine(">> Unknown Opcode:\t" + currentInstruction.OpCode.Name);
@@ -453,10 +450,26 @@ namespace cilToMango
             {
                 case "Int32":
                     return "i32";
+                case "Boolean":
+                    return "bool";
                 default:
                     Console.WriteLine("Unknown Type:\t" + cilType.FullName);
                     return "void";
             }
+        }
+
+        // converts a cil variable type into a mango variable type
+        private static String GetMangoVariableType(TypeReference cilType)
+        {
+            String result = GetMangoType(cilType);
+            // in most cases the result is equal to the normal return type in mango
+            if (result == "bool") {
+                // bool is only supported for return types of functions, but not
+                // for using it with local variables by now - even if u can
+                // declare, but not use boolean local variables...
+                return "i32";
+            }
+            return result;
         }
 
         // should return something like "int32, f32, int32" or "int32 %arg0, f32 %arg1"
